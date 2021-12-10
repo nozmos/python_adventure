@@ -1,4 +1,4 @@
-from typing import Any, Set
+from typing import Any, Dict, Set
 
 
 # Errors
@@ -44,13 +44,28 @@ class Room(AdventureObject):
     self._required_attrs = ["name", "desc", "clues"]
     super().__init__(**data)
   
-  def __getitem__(self, key) -> Clue:
+  def __getitem__(self, key: str) -> Clue:
     for clue in self.clues:
       if clue.name == key: return clue
     raise KeyError(key)
   
   def __iter__(self):
     return iter(self.clues)
+  
+  def add(self, clue: Clue) -> None:
+    self.clues.add(clue)
+
+  def remove(self, key: str) -> None:
+    for clue in self.clues.copy():
+      if clue.name == key:
+        self.clues.remove(clue)
+
+
+class Location(AdventureObject):
+  def __init__(self, **data) -> None:
+    self._required_attrs = ["name", "desc", "rooms"]
+    super().__init__(**data)
+
 
 
 test_clue = Clue(name="CLUE_NAME", desc="CLUE_DESC", is_item=True)
@@ -64,5 +79,6 @@ test_room = Room(
   }
 )
 
-for clue in test_room:
-  print(clue.name)
+print(test_room.clues)
+test_room.remove("clue 1")
+print(test_room.clues)
