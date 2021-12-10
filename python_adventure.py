@@ -1,53 +1,63 @@
-from typing import Any, Dict
+from typing import Any
 
 
 # Errors
-class MissingAttributeError(Exception):
+class ConstructionError(Exception):
   pass
 
+# Parent Class Definition
 class AdventureObject:
   def __init__(self, **data) -> None:
     self._data = data
-    self._required_attrs = []
     self._validate()
   
-  def _validate(self) -> None:
-    for attr in self._required_attrs:
-      if not attr in self._data:
-        raise MissingAttributeError(f"Invalid {self.__name__}: missing attribute {attr}")
-
-
-class Clue(AdventureObject):
-  def __init__(self, **data) -> None:
-    self._required_attrs = ["name"]
-    super().__init__(**data)
-
-    # self._required_attrs = ["name", ""]
-
-    # for attr in ["name", "desc", "is_item"]:
-    #   if not attr in self._data:
-    #     self._data[attr] = None
-  
   def __hash__(self) -> int:
-    return hash(self._data)
+    return hash(self.name)
   
   def __eq__(self, __o: object) -> bool:
     return self._data == __o._data
 
-  # def __getattr__(self, attr) -> Any:
-  #   if attr in self._data:
-  #     return self._data[attr]
-  #   else:
-  #     object.__getattr__(attr)
+  def __getattr__(self, attr) -> Any:
+    if attr[0] != "_":
+      return self._data[attr]
+    else:
+      object.__getattr__(attr)
   
-  # def __setattr__(self, __name: str, __value: Any) -> None:
-  #   if __name in self._data:
-  #     self._data[__name] = __value
+  def _validate(self) -> None:
+    if hasattr(self, "_required_attrs"):
+      missing_attrs = []
+      for attr in self._required_attrs:
+        if not attr in self._data:
+          missing_attrs.append(attr)
+      if len(missing_attrs) > 0:
+        raise ConstructionError(f"{type(self).__name__} object missing required attributes {str(missing_attrs)}")
 
 
-class Room:
+class Clue(AdventureObject):
   def __init__(self, **data) -> None:
-    self._data = data
+    self._required_attrs = ["name", "desc", "is_item"]
+    super().__init__(**data)
 
 
-test_clue = Clue()
+class Room(AdventureObject):
+  def __init__(self, **data) -> None:
+    self._required_attrs = ["name", "desc", "clues"]
+    super().__init__(**data)
+  
+  def __getitem__(self, key) -> Clue:
+    return self.clues[key]
+  
+  # def __iter__(self) 
+
+
+test_clue = Clue(name="CLUE_NAME", desc="CLUE_DESC", is_item=True)
+
+test_room = Room(
+  name="ROOM_NAME",
+  desc="ROOM_DESC",
+  clues={
+    "clue 1": Clue(name="clue 1", desc="the first clue", is_item=True)
+  }
+)
+
+print(test_room["clue 1"].desc)
