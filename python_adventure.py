@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Set
 
 
 # Errors
@@ -45,9 +45,12 @@ class Room(AdventureObject):
     super().__init__(**data)
   
   def __getitem__(self, key) -> Clue:
-    return self.clues[key]
+    for clue in self.clues:
+      if clue.name == key: return clue
+    raise KeyError(key)
   
-  # def __iter__(self) 
+  def __iter__(self):
+    return iter(self.clues)
 
 
 test_clue = Clue(name="CLUE_NAME", desc="CLUE_DESC", is_item=True)
@@ -56,8 +59,10 @@ test_room = Room(
   name="ROOM_NAME",
   desc="ROOM_DESC",
   clues={
-    "clue 1": Clue(name="clue 1", desc="the first clue", is_item=True)
+    Clue(name="clue 1", desc="the first clue", is_item=True),
+    Clue(name="clue 2", desc="the second clue", is_item=True)
   }
 )
 
-print(test_room["clue 1"].desc)
+for clue in test_room:
+  print(clue.name)
