@@ -21,13 +21,6 @@ class AdventureObject:
   
   def __str__(self) -> str:
     return self._prefix + " " + self.get("name")
-
-  # def __getattr__(self, attr) -> Any:
-  #   if attr[0] != "_":
-  #     if attr in self._data:
-  #       return self._data[attr]
-  #   else:
-  #     return object.__getattr__(attr)
   
   # Validates the object against its own required attributes
   def _validate(self) -> None:
@@ -71,11 +64,11 @@ class Clue(AdventureObject):
 
     super().__init__(**data)
   
-  def cmd(self, name: str, *args):
+  def cmd(self, name: str, arg):
     def check(arg=None) -> str:
       return self.get("desc")
     
-    return locals()[name](*args)
+    return locals()[name](arg)
 
 
 class Room(AdventureObject):
@@ -105,15 +98,6 @@ class Room(AdventureObject):
       return super().__str__() + "\n" + "\n".join([str(clue) for clue in self])
     else:
       return super().__str__()
-  
-  # def cmd(self, name: str, *args):
-  #   def take(clue_name: str) -> Clue:
-  #     if self[clue_name].is_item:
-  #       return self.pop(clue_name)
-  #     else:
-  #       return None
-    
-  #   return locals()[name](*args)
   
   def push(self, clue: Clue) -> Clue:
     self.get("clues").add(clue)
@@ -192,7 +176,7 @@ class TextAdventure(AdventureObject):
   #     "args": []
   #   }
 
-  def cmd(self, name: str, *args):
+  def cmd(self, name: str, arg):
     def go(location_name: str) -> None:
       self._current_location = self[location_name]
 
@@ -200,7 +184,7 @@ class TextAdventure(AdventureObject):
       if self._current_room[clue_name].is_item:
         self._inventory.add(self._current_room.pop(clue_name))
     
-    return locals()[name](*args)
+    return locals()[name](arg)
   
   def get_default(self) -> Location:
     for location in self.get("locations"):
