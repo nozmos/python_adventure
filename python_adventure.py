@@ -45,6 +45,9 @@ class AdventureObject:
 
   def describe(self) -> None:
     print(self.desc)
+  
+  def rename(self, name: str) -> None:
+    self.name = name
 
 
 class Clue(AdventureObject):
@@ -146,14 +149,19 @@ class Location(AdventureObject):
 
 class TextAdventure(AdventureObject):
   def __init__(self, **data) -> None:
-    self._required_attrs = ["title", "locations"]
+    self._required_attrs = [
+      ("title", str),
+      ("locations", set)
+    ]
 
-    self._inventory: Set = {}
+    self._inventory: set = {}
+    self._current_location = None
+    self._current_room = None
 
     super().__init__(**data)
   
-  def __call__(self, *args: Any, **kwds: Any) -> Any:
-    return super().__call__(*args, **kwds)
+  # def __call__(self, *args: Any, **kwds: Any) -> Any:
+  #   return super().__call__(*args, **kwds)
 
   def cmd(self, name: str, *args):
     pass
@@ -182,12 +190,6 @@ test_location = Location(
   }
 )
 
-bad_loc = Location(
-  name="test",
-  desc="another test",
-  rooms=4
-)
-
 print(test_location["A Room"])
 print()
 
@@ -195,6 +197,6 @@ test_location["A Room"].open()
 print(test_location["A Room"])
 print()
 
-test_location["A Room"].cmd("take", "Stained Wall")
+test_location["A Room"].cmd("take", "Old Key")
 print(test_location["A Room"])
 print()
