@@ -79,7 +79,7 @@ class Room(AdventureObject):
     self._required_attrs = [
       ("name", str),
       ("desc", str),
-      ("clues", set)
+      ("clues", dict)
     ]
     self._prefix = " *"
 
@@ -132,7 +132,7 @@ class Location(AdventureObject):
     self._required_attrs = [
       ("name", str),
       ("desc", str),
-      ("rooms", set)
+      ("rooms", dict)
     ]
     self._prefix = "**"
     super().__init__(**data)
@@ -157,26 +157,34 @@ class TextAdventure(AdventureObject):
   def __init__(self, **data) -> None:
     self._required_attrs = [
       ("title", str),
-      ("locations", set)
+      ("locations", dict)
     ]
 
     super().__init__(**data)
 
-    self._inventory: set = {}
-    self._current_location = self.get_default()
-    self._current_room = self._current_location.get_default().open()
+    self._inventory = {}
+    self._current_location = self.get_default().id()
+    self._current_room = self[self._current_location].get_default().id()
   
   def __call__(self) -> Any:
-    player_input = input("\n>> ")
-    return super().__call__(*args, **kwds)
+    player_cmd = self._parse_cmd(input("\n>> "))
+
+    self.cmd(player_cmd["name"], player_cmd["arg"])
+
+    print(self)
+
+    return self()
 
   def __getitem__(self, key: str) -> Location:
     for location in self.get("locations"):
       if location.id() == key: return location
     raise KeyError(key)
   
+  def __iter__(self):
+    return iter(self.get("locations"))
+  
   def __str__(self) -> str:
-    return str(self._current_location)
+    return "\n".join([str(location) for location in self]) + "\n"
 
   # Parses a command and its argument into dict from given input text
   def _parse_cmd(self, cmd_str: str) -> dict:
@@ -190,17 +198,22 @@ class TextAdventure(AdventureObject):
 
   def cmd(self, name: str, arg):
     def go(location_name: str) -> None:
-      self._current_location = self[location_name]
+      self._current_location = location_name
       print(f"Going to {location_name}...")
     
     def enter(room_name: str) -> None:
-      self._current_room.close()
-      self._current_room = self._current_location[room_name].open()
+      current_location = self[self._current_location]
+
+      current_location[self._current_room].close()
+      self._current_room = room_name
+      current_location[self._current_room].open()
+
       print(f"Entering {room_name}...")
 
     def take(clue_name: str) -> None:
-      if self._current_room[clue_name].is_item:
-        self._inventory.add(self._current_room.pop(clue_name))
+      current_room = self[self._current_location][self._current_room]
+      if current_room[clue_name].get("is_item"):
+        self._inventory.append(current_room.pop(clue_name))
     
     if name in locals():
       return locals()[name](arg)
@@ -213,54 +226,63 @@ class TextAdventure(AdventureObject):
       if location.is_default: return location
 
 
-test_location = Location(
+# clues
+cl_old_key = Clue(
+  name="Old Key",
+  desc="A Key. Looks old.",
+  is_item=True
+)
+cl_stained_wall = Clue(
+  name="Stained Wall",
+  desc="There's a stain on the wall.",
+  is_item=False
+)
+cl_painting = Clue(
+  name="Painting",
+  desc="There's a painting of a smol doggo.",
+  is_item=False
+)
+cl_phone = Clue(
+  name="Phone",
+  desc="It's unplugged.",
+  is_item=True
+)
+
+# rooms
+rm_hallway = Room(
+  name="Hallway",
+  desc="Just a regular old hallway",
+  clues={
+    cl_phone.id(): cl_phone,
+    cl_painting.id(): cl_painting
+  }
+)
+rm_bedroom = Room(
+  name="Bedroom",
+  desc="Looks like a room. Smells like one too.",
+  clues={
+    cl_old_key.id(): cl_old_key,
+    cl_stained_wall.id(): cl_stained_wall
+  }
+)
+
+# locations
+ln_house = Location(
   name="House",
   desc="Smells like a house.",
   rooms={
-    Room(
-      name="Hallway",
-      desc="Just a regular old hallway",
-      clues={
-        Clue(
-          name="Phone",
-          desc="It's unplugged.",
-          is_item=True
-        ),
-        Clue(
-          name="Painting",
-          desc="There's a painting of a smol doggo.",
-          is_item=False
-        )
-      }
-    ).unlock().default(),
-    Room(
-      name="Bedroom",
-      desc="Looks like a room. Smells like one too.",
-      clues={
-        Clue(
-          name="Old Key",
-          desc="A Key. Looks old.",
-          is_item=True
-        ),
-        Clue(
-          name="Stained Wall",
-          desc="There's a stain on the wall.",
-          is_item=False
-        )
-      }
-    ).unlock()
+    rm_hallway.id(): rm_hallway.unlock().default(),
+    rm_bedroom.id(): rm_bedroom.unlock()
   }
 )
 
 test_adv = TextAdventure(
   title="TITLE",
   locations={
-    test_location.default()
+    ln_house.id(): ln_house.default()
   }
 )
 
 print(test_adv)
-test_adv.cmd("enter", "bedroom")
-print(test_adv)
-
-# test_adv.cmd("")
+# test_adv.cmd("take", "phone")
+# print(test_adv)
