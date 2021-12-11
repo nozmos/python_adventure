@@ -1,4 +1,4 @@
-from typing import Any, Dict, Set
+from typing import Any
 
 
 # Errors
@@ -21,19 +21,21 @@ class AdventureObject:
     return self._prefix + " " + self.name
 
   def __getattr__(self, attr) -> Any:
-    if attr in self._required_attrs:
+    if attr in self._data:
       return self._data[attr]
     else:
       return object.__getattr__(attr)
   
   def _validate(self) -> None:
     if hasattr(self, "_required_attrs"):
-      missing_attrs = []
       for attr in self._required_attrs:
-        if not attr in self._data:
-          missing_attrs.append(attr)
-      if len(missing_attrs) > 0:
-        raise ConstructionError(f"{type(self).__name__} object missing required attributes {str(missing_attrs)}")
+        if not attr[0] in self._data:
+          raise ConstructionError(f"{type(self).__name__} object missing attribute {attr[0]}")
+        else:
+          typ = type(self._data[attr[0]])
+          if typ != attr[1]:
+            raise ConstructionError(f"Invalid type for \"{attr[0]}\" attribute in {type(self).__name__} object (expected {str(attr[1].__name__)}, got {str(typ.__name__)})")
+    
     if not hasattr(self, "_prefix"):
       self._prefix = ""
   
@@ -43,7 +45,11 @@ class AdventureObject:
 
 class Clue(AdventureObject):
   def __init__(self, **data) -> None:
-    self._required_attrs = ["name", "desc", "is_item"]
+    self._required_attrs = [
+      ("name", str),
+      ("desc", str),
+      ("is_item", bool)
+    ]
     self._prefix = "~"
 
     super().__init__(**data)
@@ -57,7 +63,11 @@ class Clue(AdventureObject):
 
 class Room(AdventureObject):
   def __init__(self, **data) -> None:
-    self._required_attrs = ["name", "desc", "clues"]
+    self._required_attrs = [
+      ("name", str),
+      ("desc", str),
+      ("clues", set)
+    ]
     self._prefix = "*"
 
     self._open = False
@@ -108,7 +118,11 @@ class Room(AdventureObject):
 
 class Location(AdventureObject):
   def __init__(self, **data) -> None:
-    self._required_attrs = ["name", "desc", "rooms"]
+    self._required_attrs = [
+      ("name", str),
+      ("desc", str),
+      ("rooms", set)
+    ]
     self._prefix = "**"
     super().__init__(**data)
   
@@ -126,10 +140,15 @@ class Location(AdventureObject):
 
 class TextAdventure(AdventureObject):
   def __init__(self, **data) -> None:
-    self._required_attrs = ["locations"]
+    self._required_attrs = ["title", "locations"]
+
+    self._inventory: Set = {}
 
     super().__init__(**data)
   
+  def __call__(self, *args: Any, **kwds: Any) -> Any:
+    return super().__call__(*args, **kwds)
+
   def cmd(self, name: str, *args):
     pass
 
@@ -155,6 +174,12 @@ test_location = Location(
       }
     ).unlock()
   }
+)
+
+bad_loc = Location(
+  name="test",
+  desc="another test",
+  rooms=4
 )
 
 print(test_location["A Room"])
