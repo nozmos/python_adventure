@@ -1,5 +1,5 @@
 from typing import Any
-
+import re
 
 # Errors
 class ConstructionError(Exception):
@@ -20,7 +20,7 @@ class AdventureObject:
   #   return self._data == __o._data
   
   def __str__(self) -> str:
-    return self._prefix + " " + self.get("name")
+    return "\n" + self._prefix + " " + self.get("name")
   
   # Validates the object against its own required attributes
   def _validate(self) -> None:
@@ -60,10 +60,13 @@ class Clue(AdventureObject):
       ("desc", str),
       ("is_item", bool)
     ]
-    self._prefix = "~"
+    self._prefix = "  ~"
 
     super().__init__(**data)
   
+  def __str__(self) -> str:
+    return self._prefix + " " + self.get("name")
+
   def cmd(self, name: str, arg):
     def check(arg=None) -> str:
       return self.get("desc")
@@ -78,7 +81,7 @@ class Room(AdventureObject):
       ("desc", str),
       ("clues", set)
     ]
-    self._prefix = "*"
+    self._prefix = " *"
 
     self._open = False
     self._unlocked = False
@@ -87,7 +90,7 @@ class Room(AdventureObject):
   
   def __getitem__(self, key: str) -> Clue:
     for clue in self.get("clues"):
-      if clue.get("name") == key: return clue
+      if clue.id() == key: return clue
     raise KeyError(key)
   
   def __iter__(self):
@@ -112,6 +115,11 @@ class Room(AdventureObject):
   # Unopened rooms will not show their clues in the console display
   def open(self):
     self._open = True
+    return self
+
+  def close(self):
+    self._open = False
+    return self
   
   # Locked rooms cannot be opened until unlocked
   def unlock(self):
@@ -131,14 +139,14 @@ class Location(AdventureObject):
   
   def __getitem__(self, key: str) -> Room:
     for room in self.get("rooms"):
-      if room.get("name") == key: return room
+      if room.id() == key: return room
     raise KeyError(key)
   
   def __iter__(self):
     return iter(self.get("rooms"))
   
   def __str__(self) -> str:
-    return super().__str__() + "\n" + "\n".join([str(room) for room in self])
+    return super().__str__() + "\n" + "\n".join([str(room) for room in self]) + "\n"
   
   def get_default(self) -> Room:
     for room in self.get("rooms"):
@@ -158,33 +166,47 @@ class TextAdventure(AdventureObject):
     self._current_location = self.get_default()
     self._current_room = self._current_location.get_default().open()
   
-  # def __call__(self, *args: Any, **kwds: Any) -> Any:
-  #   return super().__call__(*args, **kwds)
+  def __call__(self) -> Any:
+    player_input = input("\n>> ")
+    return super().__call__(*args, **kwds)
 
   def __getitem__(self, key: str) -> Location:
-    for location in self.locations:
-      if location.get("name") == key: return location
+    for location in self.get("locations"):
+      if location.id() == key: return location
     raise KeyError(key)
   
   def __str__(self) -> str:
     return str(self._current_location)
-    # return "Hello World"
 
-  # def _parse_cmd(self, input_str: str) -> dict:
-  #   return {
-  #     "name": "",
-  #     "args": []
-  #   }
+  # Parses a command and its argument into dict from given input text
+  def _parse_cmd(self, cmd_str: str) -> dict:
+    cmd_name = re.search("^[a-zA-Z]+", cmd_str)
+    cmd_arg = re.search("(?<=[a-zA-Z]\\s)([a-zA-Z]+\\s*)+", cmd_str)
+
+    return {
+      "name": cmd_name,
+      "arg": cmd_arg
+    }
 
   def cmd(self, name: str, arg):
     def go(location_name: str) -> None:
       self._current_location = self[location_name]
+      print(f"Going to {location_name}...")
+    
+    def enter(room_name: str) -> None:
+      self._current_room.close()
+      self._current_room = self._current_location[room_name].open()
+      print(f"Entering {room_name}...")
 
     def take(clue_name: str) -> None:
       if self._current_room[clue_name].is_item:
         self._inventory.add(self._current_room.pop(clue_name))
     
-    return locals()[name](arg)
+    if name in locals():
+      return locals()[name](arg)
+    else:
+      return None
+
   
   def get_default(self) -> Location:
     for location in self.get("locations"):
@@ -192,11 +214,27 @@ class TextAdventure(AdventureObject):
 
 
 test_location = Location(
-  name="A House",
+  name="House",
   desc="Smells like a house.",
   rooms={
     Room(
-      name="A Room",
+      name="Hallway",
+      desc="Just a regular old hallway",
+      clues={
+        Clue(
+          name="Phone",
+          desc="It's unplugged.",
+          is_item=True
+        ),
+        Clue(
+          name="Painting",
+          desc="There's a painting of a smol doggo.",
+          is_item=False
+        )
+      }
+    ).unlock().default(),
+    Room(
+      name="Bedroom",
       desc="Looks like a room. Smells like one too.",
       clues={
         Clue(
@@ -210,7 +248,7 @@ test_location = Location(
           is_item=False
         )
       }
-    ).unlock().default()
+    ).unlock()
   }
 )
 
@@ -221,7 +259,8 @@ test_adv = TextAdventure(
   }
 )
 
-# test_adv.cmd("go", "A House")
+print(test_adv)
+test_adv.cmd("enter", "bedroom")
 print(test_adv)
 
 # test_adv.cmd("")
