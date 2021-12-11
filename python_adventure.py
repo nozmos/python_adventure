@@ -21,10 +21,10 @@ class AdventureObject:
     return self._prefix + " " + self.name
 
   def __getattr__(self, attr) -> Any:
-    if attr[0] != "_":
+    if attr in self._required_attrs:
       return self._data[attr]
     else:
-      object.__getattr__(attr)
+      return object.__getattr__(attr)
   
   def _validate(self) -> None:
     if hasattr(self, "_required_attrs"):
@@ -37,6 +37,9 @@ class AdventureObject:
     if not hasattr(self, "_prefix"):
       self._prefix = ""
   
+  def cmd(seld, input: str) -> None:
+    pass
+  
   def describe(self) -> None:
     print(self.desc)
 
@@ -45,6 +48,7 @@ class Clue(AdventureObject):
   def __init__(self, **data) -> None:
     self._required_attrs = ["name", "desc", "is_item"]
     self._prefix = "~"
+    
     super().__init__(**data)
 
 
@@ -52,6 +56,9 @@ class Room(AdventureObject):
   def __init__(self, **data) -> None:
     self._required_attrs = ["name", "desc", "clues"]
     self._prefix = "*"
+
+    self._open = False
+
     super().__init__(**data)
   
   def __getitem__(self, key: str) -> Clue:
