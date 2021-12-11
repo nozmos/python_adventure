@@ -11,11 +11,11 @@ class AdventureObject:
     self._data = data
     self._validate()
   
-  def __hash__(self) -> int:
-    return hash(self.name)
+  # def __hash__(self) -> int:
+  #   return hash(self.name)
   
-  def __eq__(self, __o: object) -> bool:
-    return self._data == __o._data
+  # def __eq__(self, __o: object) -> bool:
+  #   return self._data == __o._data
   
   def __str__(self) -> str:
     return self._prefix + " " + self.name
@@ -37,9 +37,6 @@ class AdventureObject:
     if not hasattr(self, "_prefix"):
       self._prefix = ""
   
-  def cmd(seld, input: str) -> None:
-    pass
-  
   def describe(self) -> None:
     print(self.desc)
 
@@ -48,8 +45,14 @@ class Clue(AdventureObject):
   def __init__(self, **data) -> None:
     self._required_attrs = ["name", "desc", "is_item"]
     self._prefix = "~"
-    
+
     super().__init__(**data)
+  
+  def cmd(self, name: str, *args):
+    def check(arg=None) -> str:
+      return self.desc
+    
+    return locals()[name](*args)
 
 
 class Room(AdventureObject):
@@ -58,6 +61,7 @@ class Room(AdventureObject):
     self._prefix = "*"
 
     self._open = False
+    self._unlocked = False
 
     super().__init__(**data)
   
@@ -69,16 +73,37 @@ class Room(AdventureObject):
   def __iter__(self):
     return iter(self.clues)
   
-  # def __str__(self) -> str:
-  #   return super().__str__() + "\n" + "\n".join([str(clue) for clue in self])
+  def __str__(self) -> str:
+    if self._open:
+      return super().__str__() + "\n" + "\n".join([str(clue) for clue in self])
+    else:
+      return super().__str__()
   
-  def add(self, clue: Clue) -> None:
+  def cmd(self, name: str, *args):
+    def take(clue_name: str) -> Clue:
+      if self[clue_name].is_item:
+        return self.pop(clue_name)
+      else:
+        return None
+    
+    return locals()[name](*args)
+  
+  def push(self, clue: Clue) -> Clue:
     self.clues.add(clue)
+    return clue
 
-  def remove(self, key: str) -> None:
+  def pop(self, key: str) -> None:
     for clue in self.clues.copy():
       if clue.name == key:
         self.clues.remove(clue)
+        return clue
+  
+  def open(self):
+    self._open = True
+  
+  def unlock(self):
+    self._unlocked = True
+    return self
 
 
 class Location(AdventureObject):
@@ -97,6 +122,16 @@ class Location(AdventureObject):
   
   def __str__(self) -> str:
     return super().__str__() + "\n" + "\n".join([str(room) for room in self])
+
+
+class TextAdventure(AdventureObject):
+  def __init__(self, **data) -> None:
+    self._required_attrs = ["locations"]
+
+    super().__init__(**data)
+  
+  def cmd(self, name: str, *args):
+    pass
 
 
 test_location = Location(
@@ -118,12 +153,17 @@ test_location = Location(
           is_item=False
         )
       }
-    )
+    ).unlock()
   }
 )
 
-print(test_location)
-# for room in test_location:
-#   print(room)
-#   for clue in room:
-#     print(clue)
+print(test_location["A Room"])
+print()
+
+test_location["A Room"].open()
+print(test_location["A Room"])
+print()
+
+test_location["A Room"].cmd("take", "Stained Wall")
+print(test_location["A Room"])
+print()
