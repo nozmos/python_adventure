@@ -8,8 +8,10 @@ class ConstructionError(Exception):
 # Parent Class Definition
 class AdventureObject:
   def __init__(self, **data) -> None:
-    self._data = data
+    self._data = data.copy()
     self._validate()
+
+    self.is_default = False
   
   # def __hash__(self) -> int:
   #   return hash(self.name)
@@ -18,13 +20,14 @@ class AdventureObject:
   #   return self._data == __o._data
   
   def __str__(self) -> str:
-    return self._prefix + " " + self.name
+    return self._prefix + " " + self.get("name")
 
-  def __getattr__(self, attr) -> Any:
-    if attr in self._data:
-      return self._data[attr]
-    else:
-      return object.__getattr__(attr)
+  # def __getattr__(self, attr) -> Any:
+  #   if attr[0] != "_":
+  #     if attr in self._data:
+  #       return self._data[attr]
+  #   else:
+  #     return object.__getattr__(attr)
   
   # Validates the object against its own required attributes
   def _validate(self) -> None:
@@ -40,14 +43,21 @@ class AdventureObject:
     if not hasattr(self, "_prefix"):
       self._prefix = ""
   
-  def id(self) -> str:
-    return self.name.lower()
+  def default(self):
+    self.is_default = True
+    return self
 
   def describe(self) -> None:
-    print(self.desc)
+    print(self.get("desc"))
+  
+  def get(self, attr) -> Any:
+    return self._data[attr]
+  
+  def id(self) -> str:
+    return self.get("name").lower()
   
   def rename(self, name: str) -> None:
-    self.name = name
+    self._data["name"] = name
 
 
 class Clue(AdventureObject):
@@ -63,7 +73,7 @@ class Clue(AdventureObject):
   
   def cmd(self, name: str, *args):
     def check(arg=None) -> str:
-      return self.desc
+      return self.get("desc")
     
     return locals()[name](*args)
 
@@ -83,12 +93,12 @@ class Room(AdventureObject):
     super().__init__(**data)
   
   def __getitem__(self, key: str) -> Clue:
-    for clue in self.clues:
-      if clue.name == key: return clue
+    for clue in self.get("clues"):
+      if clue.get("name") == key: return clue
     raise KeyError(key)
   
   def __iter__(self):
-    return iter(self.clues)
+    return iter(self.get("clues"))
   
   def __str__(self) -> str:
     if self._open:
@@ -106,13 +116,13 @@ class Room(AdventureObject):
   #   return locals()[name](*args)
   
   def push(self, clue: Clue) -> Clue:
-    self.clues.add(clue)
+    self.get("clues").add(clue)
     return clue
 
   def pop(self, key: str) -> None:
-    for clue in self.clues.copy():
-      if clue.name == key:
-        self.clues.remove(clue)
+    for clue in self.get("clues").copy():
+      if clue.get("name") == key:
+        self.get("clues").remove(clue)
         return clue
   
   # Unopened rooms will not show their clues in the console display
@@ -136,15 +146,19 @@ class Location(AdventureObject):
     super().__init__(**data)
   
   def __getitem__(self, key: str) -> Room:
-    for room in self.rooms:
-      if room.name == key: return room
+    for room in self.get("rooms"):
+      if room.get("name") == key: return room
     raise KeyError(key)
   
   def __iter__(self):
-    return iter(self.rooms)
+    return iter(self.get("rooms"))
   
   def __str__(self) -> str:
     return super().__str__() + "\n" + "\n".join([str(room) for room in self])
+  
+  def get_default(self) -> Room:
+    for room in self.get("rooms"):
+      if room.is_default: return room
 
 
 class TextAdventure(AdventureObject):
@@ -154,20 +168,24 @@ class TextAdventure(AdventureObject):
       ("locations", set)
     ]
 
-    self._inventory: set = {}
-    self._current_location = None
-    self._current_room = None
-
     super().__init__(**data)
+
+    self._inventory: set = {}
+    self._current_location = self.get_default()
+    self._current_room = self._current_location.get_default().open()
   
   # def __call__(self, *args: Any, **kwds: Any) -> Any:
   #   return super().__call__(*args, **kwds)
 
   def __getitem__(self, key: str) -> Location:
     for location in self.locations:
-      if location.name == key: return location
+      if location.get("name") == key: return location
     raise KeyError(key)
   
+  def __str__(self) -> str:
+    return str(self._current_location)
+    # return "Hello World"
+
   # def _parse_cmd(self, input_str: str) -> dict:
   #   return {
   #     "name": "",
@@ -175,11 +193,18 @@ class TextAdventure(AdventureObject):
   #   }
 
   def cmd(self, name: str, *args):
-    def take(clue_name: str) -> Clue:
+    def go(location_name: str) -> None:
+      self._current_location = self[location_name]
+
+    def take(clue_name: str) -> None:
       if self._current_room[clue_name].is_item:
         self._inventory.add(self._current_room.pop(clue_name))
     
     return locals()[name](*args)
+  
+  def get_default(self) -> Location:
+    for location in self.get("locations"):
+      if location.is_default: return location
 
 
 test_location = Location(
@@ -201,17 +226,18 @@ test_location = Location(
           is_item=False
         )
       }
-    ).unlock()
+    ).unlock().default()
   }
 )
 
-print(test_location["A Room"])
-print()
+test_adv = TextAdventure(
+  title="TITLE",
+  locations={
+    test_location.default()
+  }
+)
 
-test_location["A Room"].open()
-print(test_location["A Room"])
-print()
+# test_adv.cmd("go", "A House")
+print(test_adv)
 
-test_location["A Room"].cmd("take", "Old Key")
-print(test_location["A Room"])
-print()
+# test_adv.cmd("")
