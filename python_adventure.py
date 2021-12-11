@@ -16,6 +16,9 @@ class AdventureObject:
   
   def __eq__(self, __o: object) -> bool:
     return self._data == __o._data
+  
+  def __str__(self) -> str:
+    return self._prefix + " " + self.name
 
   def __getattr__(self, attr) -> Any:
     if attr[0] != "_":
@@ -31,17 +34,24 @@ class AdventureObject:
           missing_attrs.append(attr)
       if len(missing_attrs) > 0:
         raise ConstructionError(f"{type(self).__name__} object missing required attributes {str(missing_attrs)}")
+    if not hasattr(self, "_prefix"):
+      self._prefix = ""
+  
+  def describe(self) -> None:
+    print(self.desc)
 
 
 class Clue(AdventureObject):
   def __init__(self, **data) -> None:
     self._required_attrs = ["name", "desc", "is_item"]
+    self._prefix = "~"
     super().__init__(**data)
 
 
 class Room(AdventureObject):
   def __init__(self, **data) -> None:
     self._required_attrs = ["name", "desc", "clues"]
+    self._prefix = "*"
     super().__init__(**data)
   
   def __getitem__(self, key: str) -> Clue:
@@ -51,6 +61,9 @@ class Room(AdventureObject):
   
   def __iter__(self):
     return iter(self.clues)
+  
+  # def __str__(self) -> str:
+  #   return super().__str__() + "\n" + "\n".join([str(clue) for clue in self])
   
   def add(self, clue: Clue) -> None:
     self.clues.add(clue)
@@ -64,21 +77,46 @@ class Room(AdventureObject):
 class Location(AdventureObject):
   def __init__(self, **data) -> None:
     self._required_attrs = ["name", "desc", "rooms"]
+    self._prefix = "**"
     super().__init__(**data)
+  
+  def __getitem__(self, key: str) -> Clue:
+    for room in self.rooms:
+      if room.name == key: return room
+    raise KeyError(key)
+  
+  def __iter__(self):
+    return iter(self.rooms)
+  
+  def __str__(self) -> str:
+    return super().__str__() + "\n" + "\n".join([str(room) for room in self])
 
 
-
-test_clue = Clue(name="CLUE_NAME", desc="CLUE_DESC", is_item=True)
-
-test_room = Room(
-  name="ROOM_NAME",
-  desc="ROOM_DESC",
-  clues={
-    Clue(name="clue 1", desc="the first clue", is_item=True),
-    Clue(name="clue 2", desc="the second clue", is_item=True)
+test_location = Location(
+  name="A House",
+  desc="Smells like a house.",
+  rooms={
+    Room(
+      name="A Room",
+      desc="Looks like a room. Smells like one too.",
+      clues={
+        Clue(
+          name="Old Key",
+          desc="A Key. Looks old.",
+          is_item=True
+        ),
+        Clue(
+          name="Stained Wall",
+          desc="There's a stain on the wall.",
+          is_item=False
+        )
+      }
+    )
   }
 )
 
-print(test_room.clues)
-test_room.remove("clue 1")
-print(test_room.clues)
+print(test_location)
+# for room in test_location:
+#   print(room)
+#   for clue in room:
+#     print(clue)
