@@ -96,14 +96,14 @@ class Room(AdventureObject):
     else:
       return super().__str__()
   
-  def cmd(self, name: str, *args):
-    def take(clue_name: str) -> Clue:
-      if self[clue_name].is_item:
-        return self.pop(clue_name)
-      else:
-        return None
+  # def cmd(self, name: str, *args):
+  #   def take(clue_name: str) -> Clue:
+  #     if self[clue_name].is_item:
+  #       return self.pop(clue_name)
+  #     else:
+  #       return None
     
-    return locals()[name](*args)
+  #   return locals()[name](*args)
   
   def push(self, clue: Clue) -> Clue:
     self.clues.add(clue)
@@ -135,7 +135,7 @@ class Location(AdventureObject):
     self._prefix = "**"
     super().__init__(**data)
   
-  def __getitem__(self, key: str) -> Clue:
+  def __getitem__(self, key: str) -> Room:
     for room in self.rooms:
       if room.name == key: return room
     raise KeyError(key)
@@ -163,8 +163,23 @@ class TextAdventure(AdventureObject):
   # def __call__(self, *args: Any, **kwds: Any) -> Any:
   #   return super().__call__(*args, **kwds)
 
+  def __getitem__(self, key: str) -> Location:
+    for location in self.locations:
+      if location.name == key: return location
+    raise KeyError(key)
+  
+  # def _parse_cmd(self, input_str: str) -> dict:
+  #   return {
+  #     "name": "",
+  #     "args": []
+  #   }
+
   def cmd(self, name: str, *args):
-    pass
+    def take(clue_name: str) -> Clue:
+      if self._current_room[clue_name].is_item:
+        self._inventory.add(self._current_room.pop(clue_name))
+    
+    return locals()[name](*args)
 
 
 test_location = Location(
