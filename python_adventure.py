@@ -26,6 +26,7 @@ class AdventureObject:
     else:
       return object.__getattr__(attr)
   
+  # Validates the object against its own required attributes
   def _validate(self) -> None:
     if hasattr(self, "_required_attrs"):
       for attr in self._required_attrs:
@@ -39,6 +40,9 @@ class AdventureObject:
     if not hasattr(self, "_prefix"):
       self._prefix = ""
   
+  def id(self) -> str:
+    return self.name.lower()
+
   def describe(self) -> None:
     print(self.desc)
 
@@ -108,9 +112,11 @@ class Room(AdventureObject):
         self.clues.remove(clue)
         return clue
   
+  # Unopened rooms will not show their clues in the console display
   def open(self):
     self._open = True
   
+  # Locked rooms cannot be opened until unlocked
   def unlock(self):
     self._unlocked = True
     return self
