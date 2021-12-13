@@ -223,7 +223,8 @@ class TextAdventure(AdventureObject):
   def __call__(self) -> Any:
     player_cmd = self._parse_cmd(input("\n>> "))
 
-    self.cmd(player_cmd["name"], player_cmd["arg"])
+    cmd = self.cmd(player_cmd["name"], player_cmd["arg"])
+    print(cmd)
 
     # print(self)
 
@@ -248,41 +249,48 @@ class TextAdventure(AdventureObject):
       "arg": cmd_arg
     }
 
-  def cmd(self, name: str, arg):
-    def check(clue_name: str) -> None:
+  def cmd(self, name: str, arg) -> str:
+    def check(clue_name: str) -> str:
       room = self.get("current_room")
       clue = None
 
-      if clue_name in room:
+      if clue_name in room.get("clues"):
         clue = room[clue_name]
       
       if clue is not None:
-        print(clue.get("desc"))
+        return clue.get("desc")
       else:
-        print("You see no clues of that description.")
-    
-    def go(location_name: str) -> None:
-      self.set("current_location", self[location_name])
-      self.set_default_room()
-      print(f"Going to {location_name}...")
-    
-    def enter(room_name: str) -> None:
-      location_name = self.get("current_location").id()
-      self.get("current_room").close()
-      self.set("current_room", self[location_name][room_name])
-      self.get("current_room").open()
+        return "You see no clues of that description."
 
-      print(f"Entering {room_name}...")
+    def go(place_name: str) -> str:
+      if place_name in self.get("current_location").get("rooms"):
+        location_name = self.get("current_location").id()
 
-    def take(clue_name: str) -> None:
+        self.get("current_room").close()
+        self.set("current_room", self[location_name][place_name])
+        self.get("current_room").open()
+
+        return f"Entering {place_name}..."
+      
+      if place_name in self.get("locations"):
+        self.set("current_location", self[place_name])
+        self.set_default_room()
+
+        return f"Travelling to {place_name}..."
+
+    def take(clue_name: str) -> str:
       room = self.get("current_room")
+
       if room[clue_name].get("is_item"):
         self.get("inventory")[clue_name] = room.pop(clue_name)
+      
+      return f"Took the {clue_name}."
     
-    # if name in locals():
-    return locals()[name](arg)
-    # else:
-    #   return None
+    if name in locals():
+      return locals()[name](arg)
+    else:
+      print("Invalid command.")
+      return None
   
   def get_default_location(self) -> Location:
     for location in self:
