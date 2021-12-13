@@ -78,23 +78,25 @@ class Clue(AdventureObject):
     def check(arg=None) -> str:
       return self.get("desc")
     
-    if name not in locals():
+    if name in locals():
+      return locals()[name](arg)
+    else:
       return self.get("actions")[name](arg)
-
-    return locals()[name](arg)
   
-  def action(self, cmd_name, *cmd_action: tuple):
-    exec(f"""def {cmd_name}(self):""")
+  # def action(self, cmd_name, *cmd_action: tuple):
+  #   exec(f"""def {cmd_name}():\n\t""")
 
-    new_action = locals()[cmd_name]
+  #   new_action = locals()[cmd_name]
 
-    return new_action
+  #   return new_action
   
-  def on(self, cmd_name, cmd_action):
+  def on(self, cmd_name: str, *cmd_actions: str):
     if cmd_name in self.get("actions"):
       print(f"Action '{cmd_name}' already defined.")
     else:
-      self.get("actions")[cmd_name] = self.action(cmd_name, cmd_action)
+      create_action = f"def {cmd_name}(arg=None):\n\t" + "\n".join(cmd_actions)
+      exec(create_action)
+      self.get("actions")[cmd_name] = locals()[cmd_name]
     
     return self
 
@@ -365,3 +367,7 @@ test_adv = TextAdventure(
     ln_street.id(): ln_street
   }
 )
+
+
+cl_old_key.on("eat", "print('ate the key')")
+cl_old_key.cmd("eat", "")
