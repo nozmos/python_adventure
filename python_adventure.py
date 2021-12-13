@@ -12,7 +12,7 @@ class AdventureObject:
     self._validate()
   
   # def __hash__(self) -> int:
-  #   return hash(self.name)
+  #   return hash(self._data.values())
   
   # def __eq__(self, __o: object) -> bool:
   #   return self._data == __o._data
@@ -90,14 +90,17 @@ class Clue(AdventureObject):
 
   #   return new_action
   
-  def on(self, cmd_name: str, *cmd_actions: str):
-    if cmd_name in self.get("actions"):
-      print(f"Action '{cmd_name}' already defined.")
-    else:
-      create_action = f"def {cmd_name}(arg=None):\n\t" + "\n".join(cmd_actions)
-      exec(create_action)
-      self.get("actions")[cmd_name] = locals()[cmd_name]
+  # def on(self, cmd_name: str, *cmd_actions: str):
+  #   if cmd_name in self.get("actions"):
+  #     print(f"Action '{cmd_name}' already defined.")
+  #   else:
+  #     create_action = f"def {cmd_name}(arg=None):\n\t" + "\n".join(cmd_actions)
+  #     exec(create_action)
+  #     self.get("actions")[cmd_name] = locals()[cmd_name]
     
+  #   return self
+
+  def unlocks_room(self, room_id: str):
     return self
 
 
@@ -368,6 +371,4 @@ test_adv = TextAdventure(
   }
 )
 
-
-cl_old_key.on("eat", "print('ate the key')")
-cl_old_key.cmd("eat", "")
+hash(test_adv)
