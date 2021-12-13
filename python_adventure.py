@@ -74,14 +74,14 @@ class Clue(AdventureObject):
   # def __str__(self) -> str:
   #   return self._prefix + " " + self.get("name")
 
-  def cmd(self, name: str, arg):
-    def check(arg=None) -> str:
-      return self.get("desc")
+  # def cmd(self, name: str, arg):
+  #   def check(arg=None) -> str:
+  #     return self.get("desc")
     
-    if name in locals():
-      return locals()[name](arg)
-    else:
-      return self.get("actions")[name](arg)
+  #   if name in locals():
+  #     return locals()[name](arg)
+  #   else:
+  #     return self.get("actions")[name](arg)
   
   # def action(self, cmd_name, *cmd_action: tuple):
   #   exec(f"""def {cmd_name}():\n\t""")
@@ -225,7 +225,7 @@ class TextAdventure(AdventureObject):
 
     self.cmd(player_cmd["name"], player_cmd["arg"])
 
-    print(self)
+    # print(self)
 
     return self()
 
@@ -240,8 +240,8 @@ class TextAdventure(AdventureObject):
 
   # Parses a command and its argument into dict from given input text
   def _parse_cmd(self, cmd_str: str) -> dict:
-    cmd_name = re.search("^[a-zA-Z]+", cmd_str)
-    cmd_arg = re.search("(?<=[a-zA-Z]\\s)([a-zA-Z]+\\s*)+", cmd_str)
+    cmd_name = re.search("^[a-zA-Z]+", cmd_str).group()
+    cmd_arg = re.search("(?<=[a-zA-Z]\\s)([a-zA-Z]+\\s*)+", cmd_str).group()
 
     return {
       "name": cmd_name,
@@ -249,6 +249,18 @@ class TextAdventure(AdventureObject):
     }
 
   def cmd(self, name: str, arg):
+    def check(clue_name: str) -> None:
+      room = self.get("current_room")
+      clue = None
+
+      if clue_name in room:
+        clue = room[clue_name]
+      
+      if clue is not None:
+        print(clue.get("desc"))
+      else:
+        print("You see no clues of that description.")
+    
     def go(location_name: str) -> None:
       self.set("current_location", self[location_name])
       self.set_default_room()
@@ -267,10 +279,10 @@ class TextAdventure(AdventureObject):
       if room[clue_name].get("is_item"):
         self.get("inventory")[clue_name] = room.pop(clue_name)
     
-    if name in locals():
-      return locals()[name](arg)
-    else:
-      return None
+    # if name in locals():
+    return locals()[name](arg)
+    # else:
+    #   return None
   
   def get_default_location(self) -> Location:
     for location in self:
@@ -371,4 +383,4 @@ test_adv = TextAdventure(
   }
 )
 
-hash(test_adv)
+test_adv()
