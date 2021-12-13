@@ -217,8 +217,8 @@ class TextAdventure(AdventureObject):
     super().__init__(**data)
 
     self.set("inventory", {})
-    self.set_default_location()
-    self.set_default_room()
+    self.update_default_location()
+    self.update_default_room()
   
   def __call__(self) -> Any:
     player_cmd = self._parse_cmd(input("\n>> "))
@@ -274,7 +274,7 @@ class TextAdventure(AdventureObject):
       
       if place_name in self.get("locations"):
         self.set("current_location", self[place_name])
-        self.set_default_room()
+        self.update_default_room()
 
         return f"Travelling to {place_name}..."
 
@@ -292,6 +292,7 @@ class TextAdventure(AdventureObject):
       print("Invalid command.")
       return None
   
+  # Default location / room getters and updaters
   def get_default_location(self) -> Location:
     for location in self:
       if location.get("is_default"): return location
@@ -300,10 +301,10 @@ class TextAdventure(AdventureObject):
     for room in self.get("current_location"):
       if room.get("is_default"): return room
 
-  def set_default_location(self) -> None:
+  def update_default_location(self) -> None:
     self.set("current_location", self.get_default_location())
   
-  def set_default_room(self) -> None:
+  def update_default_room(self) -> None:
     self.set("current_room", self.get_default_room())
 
 
