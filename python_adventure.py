@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Union
 import re
 
 HELP = """
@@ -26,8 +26,17 @@ class AdventureObject:
   # def __hash__(self) -> int:
   #   return hash(self._data.values())
   
-  # def __eq__(self, __o: object) -> bool:
-  #   return self._data == __o._data
+  def __eq__(self, __o: object) -> bool:
+    return self.id() == __o.id()
+    # for key in self._data:
+    #   if key not in __o._data:
+    #     print(f"key not found in target object: {key}")
+    #     return False
+    #   if type(self._data[key]) != dict:
+    #     if self._data[key] != __o._data[key]:
+    #       print(f"value mismatch in target object: {key}")
+    #       return False
+    # return True
   
   # def __str__(self) -> str:
   #   return "\n" + self._prefix + " " + self.get("name")
@@ -158,7 +167,7 @@ class Room(AdventureObject):
   #     print(clue.get("name"))
 
   def push(self, clue: Clue) -> Clue:
-    self.get("clues").add(clue)
+    self.get("clues")[clue.id()] = clue
     return clue
 
   def pop(self, key: str) -> None:
@@ -226,6 +235,10 @@ class Location(AdventureObject):
   def get_default(self) -> Room:
     for room in self:
       if room.get("is_default"): return room
+  
+  def push(self, room: Room) -> Room:
+    self.get("rooms")[room.id()] = room
+    return room
 
   def describe(self, is_current=False, include_details=False, include_rooms=False) -> str:
     output = super().describe(is_current, include_details)
@@ -247,6 +260,7 @@ class TextAdventure(AdventureObject):
     super().__init__(**data)
 
     self.set("inventory", {})
+    self.set("actions", {})
     self.update_default_location()
     self.update_default_room()
   
@@ -297,9 +311,9 @@ class TextAdventure(AdventureObject):
       }
 
   def cmd(self, name: str, arg=None) -> str:
-    def _init(arg=None) -> None:
-      for cmd_name in locals():
-        self.get("actions").append(cmd_name)
+    # def _init(arg=None) -> None:
+    #   for cmd_name in locals():
+    #     self.get("actions").append(cmd_name)
     
     def quit(arg=None) -> str:
       return "Exiting..."
@@ -336,12 +350,21 @@ class TextAdventure(AdventureObject):
       
       return room.describe(include_details=True) + "\n\n" + "\n".join(clue_names)
 
+    def bag(arg=None) -> str:
+      if len(self.get("inventory")) == 0:
+        return "Your bag is empty."
+      else:
+        item_names = [item.describe() for item in self.get("inventory").values()]
+        return "\n".join(item_names)
+
     def check(clue_name: str) -> str:
       room = self.get("current_room")
       clue = None
 
       if clue_name in room.get("clues"):
         clue = room[clue_name]
+      elif clue_name in self.get("inventory"):
+        clue = self.get("inventory")[clue_name]
       
       if clue is not None:
         return clue.get("desc")
@@ -362,9 +385,9 @@ class TextAdventure(AdventureObject):
         if room.get("is_locked"):
           return f"The {place_name} is locked."
 
-        self.get("current_room").close()
+        # self.get("current_room").close()
         self.set("current_room", room)
-        self.get("current_room").open()
+        # self.get("current_room").open()
 
         return f"Entering {place_name}..."
       
@@ -391,7 +414,44 @@ class TextAdventure(AdventureObject):
       else:
         return "You can't find a clue with that name."
         
-    
+    def use(clue_name: str) -> str:
+      action = self.get("actions")[clue_name]
+
+      if action is None:
+        return "You don't think you can use this."
+
+      action_requires_clue = action["requires"]["clue"]
+      action_requires_room = action["requires"]["room"]
+      action_creates_clue = action["creates"]["clue"]
+      action_creates_room = action["creates"]["room"]
+      action_location_id = action["creates"]["in_location"]
+      action_room_id = action["creates"]["in_room"]
+
+      success = False
+
+      if not action_requires_clue and not action_requires_room:
+        success = True
+      
+      if action_requires_clue and not action_requires_room:
+        if action_requires_clue.id() in self.get("inventory"):
+          success = True
+      
+      if action_requires_room and not action_requires_clue:
+        if action_requires_room.id() == self.get("current_room").id():
+          success = True
+      
+      if action_requires_clue and action_requires_room:
+        if action_requires_clue.id() in self.get("inventory") and action_requires_room.id() == self.get("current_room").id():
+          success = True
+      
+      if success:
+        if action_creates_clue:
+          self[action_location_id][action_room_id].push(action_creates_clue)
+        if action_creates_room:
+          self[action_location_id].push(action_creates_room)
+      
+      return action[success]
+
     if name in locals() and name[0] != "_":
       return locals()[name](arg)
     else:
@@ -411,7 +471,48 @@ class TextAdventure(AdventureObject):
   
   def update_default_room(self) -> None:
     self.set("current_room", self.get_default_room())
+  
+  def add_action(self,
+    use_clue_id: str,
+    requires_clue: Clue,
+    requires_room: Room,
+    creates_clue: Clue,
+    creates_room: Room,
+    in_location_id: str,
+    in_room_id: str,
+    success_message: str,
+    default_message: str) -> None:
 
+    action = {
+      "requires": {},
+      "creates": {},
+      True: success_message,
+      False: default_message
+    }
+
+    if requires_clue is None:
+      action["requires"]["clue"] = False
+    else:
+      action["requires"]["clue"] = requires_clue
+    
+    if requires_room is None:
+      action["requires"]["room"] = False
+    else:
+      action["requires"]["room"] = requires_room
+    
+    if creates_clue is None:
+      action["creates"]["clue"] = False
+    else:
+      action["creates"]["clue"] = creates_clue
+      action["creates"]["in_room"] = in_room_id
+    
+    if creates_room is None:
+      action["creates"]["room"] = False
+    else:
+      action["creates"]["room"] = creates_room
+      action["creates"]["in_location"] = in_location_id
+    
+    self.get("actions")[use_clue_id] = action
 
 # clues
 cl_old_key = Clue(
@@ -448,7 +549,7 @@ cl_snowglobe = Clue(
 # rooms
 rm_hallway = Room(
   name="Hallway",
-  desc="Just a regular old hallway",
+  desc="Just a regular old hallway.",
   clues={
     cl_phone.id(): cl_phone,
     cl_painting.id(): cl_painting
@@ -487,6 +588,13 @@ ln_street = Location(
     rm_dark_alley.id(): rm_dark_alley.default()
   }
 )
+ln_street_2 = Location(
+  name="Street",
+  desc="Looks dark, but it's midday.",
+  rooms={
+    rm_dark_alley.id(): rm_dark_alley.default()
+  }
+)
 
 # text adventure
 test_adv = TextAdventure(
@@ -497,6 +605,5 @@ test_adv = TextAdventure(
   }
 )
 
-test_adv(True)
+# test_adv(True)
 
-# print(test_adv["house"].describe())
