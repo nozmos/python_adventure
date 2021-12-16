@@ -1,6 +1,16 @@
 from typing import Any
 import re
 
+HELP = """
+# COMMANDS #
+
+help          - display help menu
+quit          - quit game
+go [place]    - go to a location or room
+check [clue]  - investigate a clue
+take [clue]   - take a clue if possible
+look around   - investigate current room"""
+
 # Errors
 class ConstructionError(Exception):
   pass
@@ -69,7 +79,7 @@ class Clue(AdventureObject):
     super().__init__(**data)
 
     self.set("prefix", "~ ")
-    self.set("actions", {})
+    self.set("actions", [])
   
   # def __str__(self) -> str:
   #   return self._prefix + " " + self.get("name")
@@ -121,7 +131,11 @@ class Room(AdventureObject):
     self.set("is_locked", False)
   
   def __getitem__(self, key: str) -> Clue:
-    return self.get("clues")[key]
+    clues = self.get("clues")
+    if key in clues:
+      return clues[key]
+    else:
+      return None
   
   def __iter__(self):
     return iter(self.get("clues").values())
@@ -182,7 +196,11 @@ class Location(AdventureObject):
     self.set("is_default", False)
   
   def __getitem__(self, key: str) -> Room:
-    return self.get("rooms")[key]
+    rooms = self.get("rooms")
+    if key in rooms:
+      return rooms[key]
+    else:
+      return None
   
   def __iter__(self):
     return iter(self.get("rooms").values())
@@ -220,18 +238,28 @@ class TextAdventure(AdventureObject):
     self.update_default_location()
     self.update_default_room()
   
-  def __call__(self) -> Any:
+  def __call__(self, display_help=False) -> Any:
+    if display_help:
+      print(self.cmd("help"))
+
     player_cmd = self._parse_cmd(input("\n>> "))
-
     cmd = self.cmd(player_cmd["name"], player_cmd["arg"])
-    print(cmd)
 
-    # print(self)
+    if player_cmd["name"] == "quit":
+      quit()
+    elif player_cmd is not None and cmd is not None:
+      print(cmd)
+    else:
+      print("Invalid command.")
 
     return self()
 
   def __getitem__(self, key: str) -> Location:
-    return self.get("locations")[key]
+    locations = self.get("locations")
+    if key in locations:
+      return locations[key]
+    else:
+      return None
   
   def __iter__(self):
     return iter(self.get("locations").values())
@@ -241,15 +269,32 @@ class TextAdventure(AdventureObject):
 
   # Parses a command and its argument into dict from given input text
   def _parse_cmd(self, cmd_str: str) -> dict:
-    cmd_name = re.search("^[a-zA-Z]+", cmd_str).group()
-    cmd_arg = re.search("(?<=[a-zA-Z]\\s)([a-zA-Z]+\\s*)+", cmd_str).group()
+    cmd_name = re.search("^[a-zA-Z]+", cmd_str)
+    cmd_arg = re.search("(?<=[a-zA-Z]\\s)([a-zA-Z]+\\s*)+", cmd_str)
 
-    return {
-      "name": cmd_name,
-      "arg": cmd_arg
-    }
+    if cmd_name is not None:
+      cmd_arg = None if cmd_arg is None else cmd_arg.group()
+      return {
+        "name": cmd_name.group(),
+        "arg": cmd_arg
+      }
+    else:
+      return {
+        "name": None,
+        "arg": None
+      }
 
-  def cmd(self, name: str, arg) -> str:
+  def cmd(self, name: str, arg=None) -> str:
+    def _init(arg=None) -> None:
+      for cmd_name in locals():
+        self.get("actions").append(cmd_name)
+    
+    def quit(arg=None) -> str:
+      return "Exiting..."
+    
+    def help(arg=None) -> str:
+      return HELP
+
     def check(clue_name: str) -> str:
       room = self.get("current_room")
       clue = None
@@ -263,33 +308,57 @@ class TextAdventure(AdventureObject):
         return "You see no clues of that description."
 
     def go(place_name: str) -> str:
-      if place_name in self.get("current_location").get("rooms"):
-        location_name = self.get("current_location").id()
+      current_location = self.get("current_location")
+      current_room = self.get("current_room")
+
+      if place_name == current_location.id() or place_name == current_room.id():
+        return "You are already at that location."
+
+      elif place_name in current_location.get("rooms"):
+        location_name = current_location.id()
+        room = self[location_name][place_name]
+
+        if room.get("is_locked"):
+          return f"The {place_name} is locked."
 
         self.get("current_room").close()
-        self.set("current_room", self[location_name][place_name])
+        self.set("current_room", room)
         self.get("current_room").open()
 
         return f"Entering {place_name}..."
       
-      if place_name in self.get("locations"):
+      elif place_name in self.get("locations"):
         self.set("current_location", self[place_name])
         self.update_default_room()
 
         return f"Travelling to {place_name}..."
+      
+      else:
+        return "That location does not exist."
+
+    def look(arg="around") -> str:
+      room = self.get("current_room")
+      
+      return room.get("name") + "\n" + room.get("desc")
 
     def take(clue_name: str) -> str:
       room = self.get("current_room")
-
-      if room[clue_name].get("is_item"):
-        self.get("inventory")[clue_name] = room.pop(clue_name)
+      clue = room[clue_name]
       
-      return f"Took the {clue_name}."
+      if clue is not None:
+        if clue.get("is_item"):
+          self.get("inventory")[clue_name] = room.pop(clue_name)
+        
+          return f"Took the {clue_name}."
+        else:
+          return f"Cannot take the {clue_name}."
+      else:
+        return "Found no clue with that name."
+        
     
-    if name in locals():
+    if name in locals() and name[0] != "_":
       return locals()[name](arg)
     else:
-      print("Invalid command.")
       return None
   
   # Default location / room getters and updaters
@@ -392,4 +461,4 @@ test_adv = TextAdventure(
   }
 )
 
-test_adv()
+test_adv(True)
