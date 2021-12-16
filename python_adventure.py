@@ -415,15 +415,19 @@ class TextAdventure(AdventureObject):
         return "You can't find a clue with that name."
         
     def use(clue_name: str) -> str:
-      action = self.get("actions")[clue_name]
-
-      if action is None:
+      if clue_name not in self.get("inventory"):
+        return "You don't have any clues of that name in your inventory."
+      
+      if clue_name not in self.get("actions"):
         return "You don't think you can use this."
+      
+      action = self.get("actions")[clue_name]
 
       action_requires_clue = action["requires"]["clue"]
       action_requires_room = action["requires"]["room"]
       action_creates_clue = action["creates"]["clue"]
       action_creates_room = action["creates"]["room"]
+      action_unlocks_room = action["unlocks"]["room"]
       action_location_id = action["creates"]["in_location"]
       action_room_id = action["creates"]["in_room"]
 
@@ -449,6 +453,8 @@ class TextAdventure(AdventureObject):
           self[action_location_id][action_room_id].push(action_creates_clue)
         if action_creates_room:
           self[action_location_id].push(action_creates_room)
+        if action_unlocks_room:
+          action_unlocks_room.unlock()
       
       return action[success]
 
@@ -478,39 +484,48 @@ class TextAdventure(AdventureObject):
     requires_room: Room,
     creates_clue: Clue,
     creates_room: Room,
+    unlocks_room: Room,
     in_location_id: str,
     in_room_id: str,
     success_message: str,
     default_message: str) -> None:
 
     action = {
-      "requires": {},
-      "creates": {},
+      "requires": {
+        "clue": False,
+        "room": False
+      },
+      "creates": {
+        "clue": False,
+        "room": False,
+        "in_room": None,
+        "in_location": None
+      },
+      "unlocks": {
+        "room": False
+      },
       True: success_message,
       False: default_message
     }
 
-    if requires_clue is None:
-      action["requires"]["clue"] = False
-    else:
+    if requires_clue is not None:
       action["requires"]["clue"] = requires_clue
     
-    if requires_room is None:
-      action["requires"]["room"] = False
-    else:
+    if requires_room is not None:
       action["requires"]["room"] = requires_room
     
-    if creates_clue is None:
-      action["creates"]["clue"] = False
-    else:
+    if creates_clue is not None:
       action["creates"]["clue"] = creates_clue
+      action["creates"]["in_location"] = in_location_id
       action["creates"]["in_room"] = in_room_id
     
-    if creates_room is None:
-      action["creates"]["room"] = False
-    else:
+    if creates_room is not None:
       action["creates"]["room"] = creates_room
       action["creates"]["in_location"] = in_location_id
+      action["creates"]["in_room"] = in_room_id
+    
+    if unlocks_room is not None:
+      action["unlocks"]["room"] = unlocks_room
     
     self.get("actions")[use_clue_id] = action
 
@@ -543,6 +558,11 @@ cl_dumpster = Clue(
 cl_snowglobe = Clue(
   name="Snowglobe",
   desc="\'For Melinda\' is engraved on its plaque.",
+  is_item=True
+)
+cl_note = Clue(
+  name="Note",
+  desc="A small note, in the shape of a key.",
   is_item=True
 )
 
@@ -605,5 +625,29 @@ test_adv = TextAdventure(
   }
 )
 
-# test_adv(True)
+test_adv.add_action(
+  "phone",
+  None,
+  None,
+  cl_note,
+  None,
+  None,
+  "street",
+  "dark alley",
+  "Despite being unplugged, the phone works because it's a mobile phone. Someone on the other end says 'I've left a note for you somewhere.' Before you can reply, they hang up.",
+  ""
+)
+test_adv.add_action(
+  "note",
+  cl_note,
+  rm_hallway,
+  None,
+  None,
+  rm_bedroom,
+  None,
+  None,
+  "You hear a door unlock upstairs.",
+  "After some fiddling, you come to the conclusion that this item won't work here."
+)
 
+test_adv(True)
