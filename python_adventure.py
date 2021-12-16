@@ -2,13 +2,14 @@ from typing import Any
 import re
 
 HELP = """
-# COMMANDS #
+# COMMANDS (case-insensitive) #
 
 help          - display help menu
 quit          - quit game
 go [place]    - go to a location or room
 check [clue]  - investigate a clue
 take [clue]   - take a clue if possible
+where am I    - 
 look around   - investigate current room"""
 
 # Errors
@@ -273,10 +274,10 @@ class TextAdventure(AdventureObject):
     cmd_arg = re.search("(?<=[a-zA-Z]\\s)([a-zA-Z]+\\s*)+", cmd_str)
 
     if cmd_name is not None:
-      cmd_arg = None if cmd_arg is None else cmd_arg.group()
+      cmd_arg = "" if cmd_arg is None else cmd_arg.group()
       return {
-        "name": cmd_name.group(),
-        "arg": cmd_arg
+        "name": cmd_name.group().lower(),
+        "arg": cmd_arg.lower()
       }
     else:
       return {
@@ -294,6 +295,12 @@ class TextAdventure(AdventureObject):
     
     def help(arg=None) -> str:
       return HELP
+    
+    def where(arg=None) -> str:
+      location = self.get('current_location')
+      room_names = [room.get("name") for room in location.get("rooms").values()]
+      
+      return location.get("name") + f" ({self.get('current_room').get('name')})" + "\n" + location.get("desc") + "\n\n* " + "\n* ".join(room_names)
 
     def check(clue_name: str) -> str:
       room = self.get("current_room")
