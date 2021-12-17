@@ -23,24 +23,6 @@ class AdventureObject:
     self._data = data.copy()
     self._validate()
   
-  # def __hash__(self) -> int:
-  #   return hash(self._data.values())
-  
-  def __eq__(self, __o: object) -> bool:
-    return self.id() == __o.id()
-    # for key in self._data:
-    #   if key not in __o._data:
-    #     print(f"key not found in target object: {key}")
-    #     return False
-    #   if type(self._data[key]) != dict:
-    #     if self._data[key] != __o._data[key]:
-    #       print(f"value mismatch in target object: {key}")
-    #       return False
-    # return True
-  
-  # def __str__(self) -> str:
-  #   return "\n" + self._prefix + " " + self.get("name")
-  
   def __repr__(self) -> str:
     return str(self._data)
 
@@ -71,7 +53,8 @@ class AdventureObject:
   
   def rename(self, name: str) -> None:
     self.set("name", name)
-  
+
+  # String for printing relevant info for user
   def describe(self, is_current=False, include_details=False) -> str:
     current = " (current)" if is_current else ""
     details = "\n" + self.get("desc") if include_details else ""
@@ -89,10 +72,6 @@ class Clue(AdventureObject):
     super().__init__(**data)
 
     self.set("prefix", "~ ")
-    # self.set("actions", [])
-  
-  # def __str__(self) -> str:
-  #   return self._prefix + " " + self.get("name")
 
 
 class Room(AdventureObject):
@@ -121,37 +100,18 @@ class Room(AdventureObject):
   def __iter__(self):
     return iter(self.get("clues").values())
   
-  # def __str__(self) -> str:
-  #   if self._open:
-  #     return super().__str__() + "\n" + "\n".join([str(clue) for clue in self])
-  #   else:
-  #     return super().__str__()
-  
+  # Sets self as default room within location
   def default(self):
     self.set("is_default", True)
     return self
-  
-  # def describe(self, detailed=False) -> None:
-  #   super().describe(detailed)
 
-  #   for clue in self:
-  #     print(clue.get("name"))
-
+  # Push & Pop clues from _data["clues"]
   def push(self, clue: Clue) -> Clue:
     self.get("clues")[clue.id()] = clue
     return clue
 
   def pop(self, key: str) -> None:
     return self.get("clues").pop(key, None)
-  
-  # Unopened rooms will not show their clues in the console display
-  def open(self):
-    self.set("is_open", True)
-    return self
-
-  def close(self):
-    self.set("is_open", False)
-    return self
   
   # Locked rooms cannot be opened until unlocked
   def lock(self):
@@ -161,7 +121,8 @@ class Room(AdventureObject):
   def unlock(self):
     self.set("is_locked", False)
     return self
-  
+
+  # String for printing relevant Room info for user
   def describe(self, is_current=False, include_details=False, include_clues=False) -> str:
     output = super().describe(is_current, include_details)
 
@@ -170,7 +131,6 @@ class Room(AdventureObject):
     else:
       clue_names = [clue.get("prefix") + clue.get("name") for clue in self]
       return output + "\n\n" + "\n".join(clue_names)
-
 
 
 class Location(AdventureObject):
@@ -196,21 +156,22 @@ class Location(AdventureObject):
   def __iter__(self):
     return iter(self.get("rooms").values())
   
-  # def __str__(self) -> str:
-  #   return super().__str__() + "\n" + "\n".join([str(room) for room in self]) + "\n"
-  
+  # Sets self as default Location on game start
   def default(self):
     self.set("is_default", True)
     return self
   
+  # Returns default room (used on Location change)
   def get_default(self) -> Room:
     for room in self:
       if room.get("is_default"): return room
   
+  # Push new rooms to _data["rooms"]. Pop not required as rooms are never removed
   def push(self, room: Room) -> Room:
     self.get("rooms")[room.id()] = room
     return room
 
+  # String for printing relevant Location info for user
   def describe(self, is_current=False, include_details=False, include_rooms=False) -> str:
     output = super().describe(is_current, include_details)
 
@@ -260,11 +221,9 @@ class TextAdventure(AdventureObject):
   
   def __iter__(self):
     return iter(self.get("locations").values())
-  
-  # def __str__(self) -> str:
-  #   return "\n".join([str(location) for location in self]) + "\n"
 
-  # Parses a command and its argument into dict from given input text
+  # Parses a command and its argument into dictionary
+  # which is then used in __call__ to evaluate results of user input
   def _parse_cmd(self, cmd_str: str) -> dict:
     cmd_name = re.search("^[a-zA-Z]+", cmd_str)
     cmd_arg = re.search("(?<=[a-zA-Z]\\s)([a-zA-Z]+\\s*)+", cmd_str)
@@ -281,19 +240,20 @@ class TextAdventure(AdventureObject):
         "arg": None
       }
 
+  # Performs commands of a specified name and optional argument
+  # choosing from a list of functions.
+  # This allows easy addition of new commands by simply defining a new function
   def cmd(self, name: str, arg=None) -> str:
-    # def _init(arg=None) -> None:
-    #   for cmd_name in locals():
-    #     self.get("actions").append(cmd_name)
-    
+    # quits game
     def quit(arg=None) -> str:
       return "Exiting..."
     
+    # displays help menu (defined top)
     def help(arg=None) -> str:
       return HELP
     
+    # shows "map" of available locations
     def map(arg=None) -> str:
-
       location_names = []
       for location in self:
         if location.id() == self.get("current_location").id():
@@ -303,6 +263,7 @@ class TextAdventure(AdventureObject):
       
       return "\n".join(location_names)
     
+    # prints current location + description, plus list of rooms
     def where(arg=None) -> str:
       location = self.get('current_location')
 
@@ -315,12 +276,14 @@ class TextAdventure(AdventureObject):
       
       return location.describe(include_details=True) + "\n\n" + "\n".join(room_names)
 
+    # prints current room + description, plus list of clues
     def look(arg=None) -> str:
       room = self.get("current_room")
       clue_names = [clue.describe() for clue in room]
       
       return room.describe(include_details=True) + "\n\n" + "\n".join(clue_names)
 
+    # prints list of clues in inventory
     def bag(arg=None) -> str:
       if len(self.get("inventory")) == 0:
         return "Your bag is empty."
@@ -328,6 +291,7 @@ class TextAdventure(AdventureObject):
         item_names = [item.describe() for item in self.get("inventory").values()]
         return "\n".join(item_names)
 
+    # prints description of given clue
     def check(clue_name: str) -> str:
       room = self.get("current_room")
       clue = None
@@ -342,6 +306,7 @@ class TextAdventure(AdventureObject):
       else:
         return "You see no clues of that description."
 
+    # changes current room or location
     def go(place_name: str) -> str:
       current_location = self.get("current_location")
       current_room = self.get("current_room")
@@ -356,9 +321,7 @@ class TextAdventure(AdventureObject):
         if room.get("is_locked"):
           return f"The {place_name} is locked."
 
-        # self.get("current_room").close()
         self.set("current_room", room)
-        # self.get("current_room").open()
 
         return f"Entering {place_name}..."
       
@@ -371,6 +334,7 @@ class TextAdventure(AdventureObject):
       else:
         return "That location does not exist."
 
+    # removes given clue from room and adds it to inventory
     def take(clue_name: str) -> str:
       room = self.get("current_room")
       clue = room[clue_name]
@@ -384,7 +348,8 @@ class TextAdventure(AdventureObject):
           return f"You can't find a way to take the {clue_name}."
       else:
         return "You can't find a clue with that name."
-        
+    
+    # Use a clue if applicable
     def use(clue_name: str) -> str:
       if clue_name not in self.get("inventory"):
         return "You don't have any clues of that name in your inventory."
@@ -429,7 +394,7 @@ class TextAdventure(AdventureObject):
       
       return action[success]
 
-    if name in locals() and name[0] != "_":
+    if name in locals():
       return locals()[name](arg)
     else:
       return None
@@ -449,6 +414,7 @@ class TextAdventure(AdventureObject):
   def update_default_room(self) -> None:
     self.set("current_room", self.get_default_room())
   
+  # adds a new action to _data["actions"] for evalution by cmd("use", CLUE_NAME)
   def add_action(self,
     use_clue_id: str,
     requires_clue: Clue,
@@ -500,7 +466,7 @@ class TextAdventure(AdventureObject):
     
     self.get("actions")[use_clue_id] = action
 
-# clues
+# defining clues
 cl_old_key = Clue(
   name="Old Key",
   desc="A Key. Looks old.",
@@ -537,7 +503,7 @@ cl_note = Clue(
   is_item=True
 )
 
-# rooms
+# defining rooms
 rm_hallway = Room(
   name="Hallway",
   desc="Just a regular old hallway.",
@@ -563,7 +529,7 @@ rm_dark_alley = Room(
   }
 )
 
-# locations
+# defining locations
 ln_house = Location(
   name="House",
   desc="Smells like a house.",
@@ -587,7 +553,7 @@ ln_street_2 = Location(
   }
 )
 
-# text adventure
+# defining text adventure
 test_adv = TextAdventure(
   title="TITLE",
   locations={
@@ -596,6 +562,7 @@ test_adv = TextAdventure(
   }
 )
 
+# adding actions
 test_adv.add_action(
   "phone",
   None,
@@ -621,4 +588,5 @@ test_adv.add_action(
   "After some fiddling, you come to the conclusion that this item won't work here."
 )
 
+# run game, print help menu on start
 test_adv(True)
