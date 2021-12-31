@@ -11,7 +11,9 @@ check [clue]  - investigate a clue
 take [clue]   - take a clue if possible
 map           - see available locations
 where am I    - see available rooms
-look around   - investigate current room"""
+look around   - investigate current room
+bag           - see inventory
+use [clue]    - use an item (if possible)"""
 
 # Errors
 class ConstructionError(Exception):
